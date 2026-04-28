@@ -2,6 +2,7 @@
     "conventionalCommits.scopes": [
         "README",
         "Project",
-        "Backend"
+        "Backend",
+        "Tests"
     ]
 }
