@@ -1,0 +1,560 @@
+RENDU — PROJET DDD — GESTION DE DEVIS ET DE FACTURATION
+
+Ce document décrit comment modéliser et structurer un logiciel pour la gestion du cycle devis → facturation → paiements, dans une démarche DDD (Domain-Driven Design). Il est pensé pour qu’un nouveau lecteur comprenne d’emblée le cadre avant de parcourir les listes d’événements, de scénarios et de contextes.
+
+1. BDD (GHERKIN)
+
+Explications
+Le Behavior-Driven Development (BDD) consiste à décrire le comportement attendu du système dans un langage lisible par le métier et les développeurs. Le format Gherkin (Feature, Scenario, Given / When / Then / And) structure ces exemples concrets.
+
+Ci-dessous : scénarios exprimant les comportements essentiels du logiciel de devis et facturation.
+Tous les scénarios utilisent volontairement le format Gherkin strict Given / When / Then / And, avec des exemples concrets.
+
+Feature: Création et validation d'un devis
+  En tant qu'équipe commerciale
+  Je veux créer un devis complet, traçable et valide
+  Afin de formaliser une proposition commerciale fiable pour un client
+
+  Scenario: Création valide d'un devis
+    Given un client ayant pour nom "Martin" et pour prénom "Lucie"
+    And un produit "Audit DDD" avec un prix unitaire de 500€
+    When le commercial "Sophie Durand" crée un devis nommé "Devis audit DDD - Martin" avec 1 unité du produit "Audit DDD"
+    Then le devis "Devis audit DDD - Martin" est créé avec le statut "Brouillon"
+    And sa date de création est définie automatiquement au format AAAA/MM/JJ HH:mm:ss
+    And sa date de création est immuable
+
+  Scenario: Modification d’un devis avec versioning
+    Given un devis "Devis audit DDD - Martin" en statut "Brouillon" et en version "V0"
+    When le commercial "Sophie Durand" ajoute la note "Inclure un atelier Event Storming"
+    Then une nouvelle version "V1" du devis est créée
+    And la version "V0" est archivée en lecture seule
+
+  Scenario: Refus de création d'un devis incomplet
+    Given un client ayant pour nom "Bernard" et pour prénom "Thomas"
+    When le commercial "Sophie Durand" tente de créer un devis sans titre et sans ligne de produit ou service
+    Then le devis n'est pas créé
+    And le message "Titre et au moins une ligne sont obligatoires" est affiché
+
+  Scenario: Refus d'une ligne de devis avec montant négatif
+    Given un devis "Devis formation DDD - Bernard" en statut "Brouillon"
+    When le commercial "Sophie Durand" ajoute une ligne "Remise exceptionnelle" avec un montant de -50€
+    Then la ligne est refusée
+    And le devis "Devis formation DDD - Bernard" reste en statut "Brouillon"
+
+  Scenario: Ajout d’une ligne de devis avec calcul du montant
+    Given un devis "Devis audit DDD - Martin" en statut "Brouillon"
+    When le commercial "Sophie Durand" ajoute le produit "Atelier DDD" avec quantité 2 et prix unitaire 100€
+    Then le devis contient une ligne "Atelier DDD" avec un montant total de 200€
+
+  Scenario: Expiration automatique d’un devis
+    Given un devis "Devis audit DDD - Martin" en statut "Envoyé" avec une date de validité au "2026/04/01 23:59:59"
+    And la date courante du système est "2026/04/28 09:00:00"
+    When le système vérifie les devis expirés
+    Then le devis "Devis audit DDD - Martin" devient "Expiré"
+    And un événement "DevisExpire" est émis
+
+Feature: Modification, versionnement et traçabilité d'un devis
+  En tant qu'équipe commerciale
+  Je veux modifier un devis uniquement tant que son cycle de vie l'autorise
+  Afin de conserver un historique clair des propositions envoyées au client
+
+  Scenario: Modification d'un devis modifiable
+    Given un devis "Devis formation DDD - Bernard" en statut "En négociation" et en version "V1"
+    When le commercial "Sophie Durand" modifie la remise de la ligne "Formation DDD" à 10%
+    Then une nouvelle version "V2" du devis est créée
+    And la version "V1" est conservée en lecture seule
+    And la date de modification est mise à jour au format AAAA/MM/JJ HH:mm:ss
+
+  Scenario: Interdiction de modifier un devis approuvé
+    Given un devis "Devis audit DDD - Martin" en statut "Approuvé"
+    When le commercial "Sophie Durand" tente de modifier la ligne "Audit DDD"
+    Then une erreur "Un devis approuvé ne peut plus être modifié" est levée
+    And la version approuvée du devis reste immuable
+
+  Scenario: Interdiction de modifier un devis expiré
+    Given un devis "Devis cadrage DDD - Leroy" en statut "Expiré"
+    When le commercial "Sophie Durand" tente d'ajouter une ligne "Atelier supplémentaire"
+    Then une erreur "Un devis expiré ne peut plus être modifié" est levée
+    And le devis "Devis cadrage DDD - Leroy" reste immuable
+
+  Scenario: Seule la dernière version d'un devis peut être approuvée
+    Given un devis "Devis formation DDD - Bernard" avec les versions "V0", "V1" et "V2"
+    When le client "Thomas Bernard" tente d'approuver la version "V1"
+    Then l'approbation est refusée
+    And le message "Seule la dernière version du devis peut être approuvée" est affiché
+
+Feature: Approbation d'un devis et génération de facture
+  En tant que système de facturation
+  Je veux générer automatiquement une facture lorsqu'un devis est approuvé
+  Afin d'enchaîner correctement la vente vers le suivi comptable
+
+  Scenario: Un devis approuvé génère une facture émise
+    Given un devis "Devis audit DDD - Martin" en statut "Envoyé" pour la cliente "Lucie Martin"
+    And le devis contient une ligne "Audit DDD" de 500€
+    And une date d'échéance de paiement "2026/05/30" est fournie
+    When la cliente "Lucie Martin" approuve le devis
+    Then le devis "Devis audit DDD - Martin" passe au statut "Approuvé"
+    And un événement "DevisApprouve" est émis
+    And une facture est générée automatiquement
+    And le titre de la facture est "Facture Devis audit DDD - Martin"
+    And le statut initial de la facture est "Émise"
+
+  Scenario: Génération d’une facture lors du traitement de l’événement DevisApprouve
+    Given un événement "DevisApprouve" pour le devis "Devis audit DDD - Martin"
+    And le devis approuvé contient la ligne "Audit DDD" de 500€
+    When le contexte "Facturation" traite l'événement
+    Then une facture "Facture Devis audit DDD - Martin" est créée automatiquement
+    And la facture reprend la ligne "Audit DDD" de 500€
+    And son statut est "Émise"
+
+  Scenario: Définition d’une échéance de facture
+    Given une facture "Facture Devis audit DDD - Martin" nouvellement créée au statut "Émise"
+    When le comptable "Nadia Petit" définit la date d'échéance au "2026/05/30"
+    Then la facture contient l'échéance valide "2026/05/30"
+
+  Scenario: Refus d’un devis
+    Given un devis "Devis formation DDD - Bernard" en statut "Envoyé"
+    When le client "Thomas Bernard" refuse le devis
+    Then le devis "Devis formation DDD - Bernard" devient "Refusé"
+
+  Scenario: Envoi automatique de la facture au client
+    Given une facture "Facture Devis audit DDD - Martin" au statut "Émise"
+    And la cliente "Lucie Martin" possède l'adresse email "lucie.martin@example.com"
+    When le système demande l'envoi de la facture
+    Then un email est envoyé à "lucie.martin@example.com"
+    And la facture est marquée comme "Envoyée"
+    And l'envoi est tracé dans l'historique de la facture
+
+  Scenario: Envoi d’un devis
+    Given un devis "Devis audit DDD - Martin" en statut "Brouillon"
+    And la cliente "Lucie Martin" possède l'adresse email "lucie.martin@example.com"
+    When le commercial "Sophie Durand" envoie le devis au client
+    Then le devis devient "Envoyé"
+    And un email est transmis à "lucie.martin@example.com"
+
+Feature: Cycle de vie d'une facture
+  En tant qu'équipe financière
+  Je veux suivre précisément les statuts d'une facture
+  Afin de savoir si elle est émise, réalisée, payée, annulée ou clôturée
+
+  Scenario: Passage d'une facture émise à réalisée
+    Given une facture "Facture Devis audit DDD - Martin" au statut "Émise"
+    And la prestation "Audit DDD" est planifiée pour la cliente "Lucie Martin"
+    When le responsable opérationnel "Karim Moreau" marque la prestation "Audit DDD" comme réalisée
+    Then la facture passe au statut "Réalisée"
+    And le changement de statut est ajouté à l'historique
+
+  Scenario: Passage d'une facture réalisée à soldée
+    Given une facture "Facture Devis audit DDD - Martin" au statut "Réalisée" avec un reste à charge de 500€
+    When un paiement total de 500€ est enregistré par virement bancaire
+    Then la facture passe au statut "Soldée"
+    And le reste à charge devient égal à 0€
+
+  Scenario: Clôture automatique d'une facture réalisée et soldée
+    Given une facture "Facture Devis audit DDD - Martin" au statut "Soldée"
+    And l'historique de la facture contient le statut "Réalisée"
+    When le système vérifie les conditions de clôture
+    Then la facture passe automatiquement au statut "Clôturée"
+
+  Scenario: Annulation d'une facture
+    Given une facture "Facture Devis formation DDD - Bernard" au statut "Émise"
+    When le comptable "Nadia Petit" annule la facture pour erreur de saisie
+    Then la facture passe au statut "Annulée"
+    And l'annulation est conservée dans l'historique
+
+  Scenario: Unicité d'un statut dans l'historique d'une facture
+    Given une facture "Facture Devis audit DDD - Martin" dont l'historique contient déjà le statut "Émise"
+    When le système tente d'ajouter une deuxième occurrence du statut "Émise"
+    Then le changement de statut est refusé
+    And le message "Un statut ne peut apparaître qu'une seule fois dans l'historique" est affiché
+
+Feature: Paiements, retards et relances
+  En tant qu'équipe financière
+  Je veux suivre les paiements et relancer les factures en retard
+  Afin de réduire les retards de paiement
+
+  Scenario: Enregistrement d'un paiement partiel
+    Given une facture "Facture Devis audit DDD - Martin" au statut "Émise" avec un montant total de 500€
+    When un paiement partiel de 200€ est enregistré par carte bancaire
+    Then le reste à charge est recalculé à 300€
+    And la facture passe au statut "Partiellement soldée"
+    And la surveillance de l'échéance reste active
+
+  Scenario: Enregistrement d'un paiement total
+    Given une facture "Facture Devis audit DDD - Martin" avec un reste à charge de 500€
+    When un paiement de 500€ est enregistré par virement bancaire
+    Then le reste à charge devient égal à 0€
+    And la facture passe au statut "Soldée"
+
+  Scenario: Détection d'un retard de paiement
+    Given une facture "Facture Devis audit DDD - Martin" non soldée avec une échéance au "2026/05/30"
+    And la date courante du système est "2026/06/02"
+    When le système contrôle les échéances
+    Then un événement "EcheanceDepassee" est émis
+    And une relance de niveau 1 peut être envoyée à "lucie.martin@example.com"
+
+  Scenario: Mise en demeure après relances successives
+    Given une facture "Facture Devis audit DDD - Martin" non soldée
+    And deux relances amiables ont déjà été envoyées à "lucie.martin@example.com"
+    When le délai maximal de paiement est dépassé
+    Then une mise en demeure est envoyée à "lucie.martin@example.com"
+    And un événement "MiseEnDemeureEmise" est émis
+
+  Scenario: Relance niveau 1
+    Given une facture "Facture Devis audit DDD - Martin" en retard depuis 3 jours
+    When le système déclenche une relance
+    Then une relance de niveau 1 est envoyée à "lucie.martin@example.com"
+
+Feature: Avoirs et corrections de facture
+  En tant qu'équipe financière
+  Je veux corriger ou compenser une facture
+  Afin de gérer les erreurs, annulations ou remboursements partiels
+
+  Scenario: Création d'un avoir après validation d'un avenant
+    Given une facture "Facture Devis audit DDD - Martin" émise pour 500€
+    And un avenant validé réduit le montant dû de 100€
+    When le contexte "Facturation" publie l'événement "AvenantValide"
+    Then un avoir de 100€ est créé
+    And l'avoir indique qu'il peut être remboursé ou compensé
+
+  Scenario: Correction via avenant
+    Given une facture "Facture Devis audit DDD - Martin" émise avec une erreur de montant de 100€
+    When le comptable "Nadia Petit" génère un avenant correctif
+    Then la facture initiale est corrigée par l'avenant
+    And un événement "AvenantGenere" est émis
+
+  Scenario: Remboursement d'un avoir
+    Given un avoir "AV-2026-001" disponible pour 100€ au bénéfice de "Lucie Martin"
+    When un remboursement de 100€ est effectué vers le compte bancaire de "Lucie Martin"
+    Then un événement "AvoirRembourse" est émis
+    And l'avoir "AV-2026-001" est clôturé
+
+  Scenario: Compensation d'un avoir sur une autre facture
+    Given un avoir "AV-2026-001" disponible pour 100€
+    And une facture "Facture Devis accompagnement DDD - Martin" avec un reste à charge de 300€
+    When l'avoir est appliqué à cette facture
+    Then le reste à charge de la facture diminue à 200€
+    And un événement "AvoirCompense" est émis
+
+Feature: Import, export et envoi documentaire
+  En tant qu'utilisateur
+  Je veux importer et exporter les devis et factures
+  Afin de fluidifier les échanges et éviter les doubles saisies
+
+  Scenario: Import d'un devis depuis Excel
+    Given un fichier Excel "devis-martin.xlsx" contenant le client "Lucie Martin", le produit "Audit DDD", la quantité 1 et le prix 500€
+    When l'utilisateur "Sophie Durand" importe le fichier
+    Then le service d'import transforme le fichier en devis "Devis audit DDD - Martin"
+    And les règles de création du devis sont appliquées
+
+  Scenario: Export d'une facture
+    Given une facture "Facture Devis audit DDD - Martin" au statut "Émise"
+    When l'utilisateur "Nadia Petit" demande un export PDF
+    Then un document PDF "facture-devis-audit-ddd-martin.pdf" est généré
+    And l'export est tracé
+
+  Scenario: Export d’un devis en PDF
+    Given un devis "Devis audit DDD - Martin" en statut "Envoyé"
+    When l'utilisateur "Sophie Durand" exporte le devis en PDF
+    Then un fichier PDF "devis-audit-ddd-martin.pdf" est généré
+
+Feature: Envoi de notifications
+  En tant que système
+  Je veux envoyer des emails
+  Afin d’informer les clients
+
+  Scenario: Notification d’envoi d’un devis
+    Given un devis "Devis audit DDD - Martin" au statut "Envoyé"
+    And la cliente "Lucie Martin" possède l'adresse email "lucie.martin@example.com"
+    When le système traite l'envoi du devis
+    Then un email est transmis à "lucie.martin@example.com"
+
+  Scenario: Notification d’envoi d’une facture
+    Given une facture "Facture Devis audit DDD - Martin" au statut "Émise"
+    And la cliente "Lucie Martin" possède l'adresse email "lucie.martin@example.com"
+    When le système traite l'envoi de la facture
+    Then un email est envoyé à "lucie.martin@example.com"
+
+Feature: Traçabilité et preuve
+  En tant qu'organisation
+  Je veux conserver l'historique des actions importantes
+  Afin de garantir la fiabilité des documents et des décisions
+
+  Scenario: Traçabilité d'un événement métier important
+    Given un devis "Devis audit DDD - Martin" au statut "Envoyé"
+    When la cliente "Lucie Martin" approuve le devis
+    Then un événement "DevisApprouve" est enregistré
+    And l'historique indique l'action, la date, le document concerné et l'acteur "Lucie Martin"
+
+  Scenario: Préparation à une preuve d'authenticité
+    Given une facture "Facture Devis audit DDD - Martin" au statut "Clôturée"
+    When une preuve d'authenticité est demandée
+    Then le contexte "Traçabilité et preuve" fournit l'historique des événements liés à la facture
+
+2. RÉPARTITION DES TÂCHES
+
+Note : le document source ne contenait pas de répartition figée ; proposition alignée sur les bounded contexts identifiés.
+
+Zones / équipes et tâches types
+- Gestion des devis : modèle agrégat devis, versionnement, lignes, notes, statuts, API et UI création/édition.
+- Gestion de la facturation : génération facture depuis devis approuvé, titrage, échéance, historique de statuts, immuabilité documentaire.
+- Paiements et relances : enregistrement paiements, reste à charge, détection retard, relances, intégration modes de paiement.
+- Gestion des avoirs : cycle de vie avoir, compensation / remboursement, annulation, expiration.
+- Import / Export : import Excel devis/factures, export CSV, Excel, PDF ; fabrique de devis depuis import.
+- Notification et envoi : envoi e-mail devis/factures, gabarits, file d’événements.
+- Traçabilité et preuve : historique versions, audit, éventuelle intégration blockchain (hors périmètre fonctionnel minimal).
+
+Ordre de dépendance suggéré : Devis → Facturation → (Paiements + Notifications) en parallèle partielle ; Import/Export en transversal ; Traçabilité en transversal dès les premières itérations.
+
+3. DÉFINIR LES BOUNDED CONTEXTS
+
+Explications (bounded context)
+Un bounded context (« contexte délimité ») est une zone du logiciel où le vocabulaire et les règles métier veulent dire une seule chose, sans ambiguïté. Chaque contexte est comme un « quartier » : tant qu’on reste dedans, tout le monde est d’accord sur le sens des mots et sur les règles.
+
+Points clés
+- Même mot, sens différent selon le contexte (ex. « Facture » strictement comptable en Facturation vs résumé utile en Paiements & relances).
+- Frontière = protection contre la confusion : évite un modèle géant contradictoire.
+- Organisation du code et des équipes : correspond souvent à un module (ou microservice) et parfois à une équipe.
+- Communication contrôlée : via des contrats explicites (événements, API, messages). Si besoin, traduction via anti-corruption layer.
+
+Carte de contexte (définition)
+La carte de contexte est une vue d’ensemble (souvent graphique) montrant les bounded contexts du système, leurs relations (qui consomme quoi, amont/aval) et parfois les patterns d’intégration (partenariat, client–fournisseur, conformiste, anti-corruption layer…). Elle sert à comprendre les dépendances entre parties du logiciel et entre équipes, et à décider où placer une fonctionnalité.
+
+3.1. BOUNDED CONTEXTS IDENTIFIÉS (SYNTHÈSE)
+
+Pour chaque contexte : type DDD, responsabilité principale, ce qu’il ne doit pas gérer.
+
+- Négociation & Vente / Gestion des devis
+  - Type DDD : Core Domain
+  - Responsabilité : créer, modifier, versionner, envoyer et faire approuver les devis.
+  - Ne doit pas gérer : paiements réels, relances, règles comptables de facture.
+
+- Facturation
+  - Type DDD : Supporting Domain
+  - Responsabilité : générer une facture depuis un devis approuvé, gérer l’échéance, les statuts comptables, corrections par avenant.
+  - Ne doit pas gérer : négociation commerciale, encaissement bancaire.
+
+- Trésorerie & Recouvrement / Paiements et relances
+  - Type DDD : Supporting Domain
+  - Responsabilité : suivre les paiements, calculer le reste à charge, détecter les retards, déclencher les relances.
+  - Ne doit pas gérer : création détaillée du devis, mise en forme finale de la facture.
+
+- Gestion des avoirs
+  - Type DDD : Supporting Domain
+  - Responsabilité : gérer les avoirs issus d’une correction, d’une annulation ou d’un remboursement partiel.
+  - Ne doit pas gérer : contenu initial d’une facture (réagit à un avenant ou à une demande financière).
+
+- Catalogue & Tiers
+  - Type DDD : Shared Kernel
+  - Responsabilité : fournir les clients, produits et services utilisés dans devis et factures.
+  - Ne doit pas gérer : cycle de vie d’un devis, d’une facture, d’un paiement.
+
+- Import / Export documentaire
+  - Type DDD : Generic Domain
+  - Responsabilité : importer (Excel), exporter (CSV, Excel, PDF), transformer des données externes en objets métier valides.
+  - Ne doit pas gérer : contournement des règles métier (les validations s’appliquent aussi à l’import).
+
+- Notification et envoi
+  - Type DDD : Infrastructure / Supporting Domain
+  - Responsabilité : envoyer devis/factures/relances par e-mail, gérer modèles et suivi d’envoi.
+  - Ne doit pas gérer : décider si un devis est approuvé ou si une facture est payée.
+
+- Traçabilité et preuve
+  - Type DDD : Infrastructure / Supporting Domain
+  - Responsabilité : historique des versions, statuts, actions importantes ; préparation d’une preuve d’authenticité (ex. blockchain).
+  - Ne doit pas gérer : modifier les règles métier (observe et enregistre les faits).
+
+3.2. DESCRIPTION DES INTERACTIONS
+
+Parcours principal : devis → facture → paiement → clôture
+1) Négociation & Vente crée le devis (client, produits/services, montants, notes, conditions).
+2) À chaque modification importante : nouvelle version + événement NouvelleVersionDevisCreee.
+3) À l’envoi : Notification et envoi transmet au client + trace l’envoi.
+4) À l’approbation : événement DevisApprouve.
+5) Facturation consomme DevisApprouve et génère la facture (titre, lignes, taxes, client, dates, échéance).
+6) Facturation publie FactureEmise ; Notification et envoi envoie la facture.
+7) À la réalisation : Facturation passe à Réalisée et publie FactureRealisee.
+8) Trésorerie & Recouvrement enregistre les paiements et publie PaiementEnregistre / FacturePartiellementPayee.
+9) Si reste à charge = 0 : Facturation passe à Soldée puis (si réalisée) à Clôturée.
+10) Si échéance dépassée : événement EcheanceDepassee ; Notification et envoi transmet une relance.
+11) En cas de correction : Facturation publie AvenantValide.
+12) Gestion des avoirs consomme AvenantValide et crée un avoir (remboursement AvoirRembourse ou compensation AvoirCompense).
+13) Import / Export interagit avec Négociation & Vente et Facturation sans contourner les validations.
+14) Traçabilité et preuve écoute les événements importants (création, modification, approbation, émission, paiement, relance, avoir, export).
+
+3.2.1. CONTEXT MAP (FORMELLE)
+
+La carte ci-dessous formalise les relations entre bounded contexts avec les patterns DDD principaux : Customer-Supplier, Conformist, Shared Kernel, ACL (Anti-Corruption Layer), et flux d’événements.
+
+```mermaid
+flowchart LR
+  %% Types de domaines DDD
+  subgraph CORE["Core Domain"]
+    SALES["Gestion des devis<br/>(Négociation & Vente)"]
+  end
+
+  subgraph SUPPORT["Supporting Domains"]
+    INVOICE["Facturation"]
+    PAYMENT["Paiements & Relances<br/>(Trésorerie & Recouvrement)"]
+    CREDIT["Gestion des avoirs"]
+    NOTIF["Notification & Envoi"]
+    TRACE["Traçabilité & Preuve"]
+  end
+
+  subgraph GENERIC["Generic Domain"]
+    DOC["Import / Export documentaire"]
+  end
+
+  subgraph SHARED["Shared Kernel"]
+    CATALOG["Catalogue & Tiers<br/>(Clients, Produits, Services)"]
+  end
+
+  %% Relations structurantes
+  CATALOG <-->|Shared Kernel| SALES
+  CATALOG <-->|Shared Kernel| INVOICE
+
+  SALES -->|Customer-Supplier<br/>DevisApprouve| INVOICE
+  INVOICE -->|Conformist<br/>FactureEmise| PAYMENT
+  INVOICE -->|Customer-Supplier<br/>FactureEmise| NOTIF
+  PAYMENT -->|Customer-Supplier<br/>EcheanceDepassee / RappelPaiementEnvoye| NOTIF
+  INVOICE -->|Customer-Supplier<br/>AvenantValide| CREDIT
+  CREDIT -->|Domain Events<br/>AvoirCompense / AvoirRembourse| PAYMENT
+
+  DOC -->|ACL<br/>Import devis valide| SALES
+  DOC -->|ACL<br/>Import / export facture| INVOICE
+
+  SALES -->|Domain Events| TRACE
+  INVOICE -->|Domain Events| TRACE
+  PAYMENT -->|Domain Events| TRACE
+  CREDIT -->|Domain Events| TRACE
+  NOTIF -->|Logs d'envoi| TRACE
+  DOC -->|Traces import/export| TRACE
+
+  classDef core fill:#ffe0b2,stroke:#e65100,stroke-width:2px,color:#000;
+  classDef support fill:#e3f2fd,stroke:#1565c0,stroke-width:1.5px,color:#000;
+  classDef generic fill:#f3e5f5,stroke:#6a1b9a,stroke-width:1.5px,color:#000;
+  classDef shared fill:#e8f5e9,stroke:#2e7d32,stroke-width:1.5px,color:#000;
+
+  class SALES core;
+  class INVOICE,PAYMENT,CREDIT,NOTIF,TRACE support;
+  class DOC generic;
+  class CATALOG shared;
+```
+
+Règles de lecture formelles
+- Upstream / Downstream : Négociation & Vente est upstream de Facturation ; Facturation est upstream de Trésorerie & Recouvrement et Gestion des Avoirs.
+- Shared Kernel : Catalogue & Tiers est partagé entre Négociation & Vente et Facturation.
+- ACL : Import / Export Documentaire passe par une couche d’anticorruption pour protéger les modèles métiers internes.
+- Conformist : Trésorerie & Recouvrement se conforme au modèle de facture publié par Facturation pour éviter la duplication des règles comptables.
+- Traçabilité transversale : tous les contextes émettent des traces ou événements vers Traçabilité & Preuve.
+
+3.3. LANGAGE UBIQUITAIRE — CORE DOMAIN — INFRASTRUCTURE
+
+1) Core Domain — Négociation & vente
+- Dossier commercial / affaire : agrégat regroupant plusieurs devis, factures ou avoirs liés à un même besoin client.
+- Devis : agrégat racine (proposition chiffrée) contenant client, lignes, notes, conditions, statut, versions.
+- Version de devis : instantané ; une modification importante crée une nouvelle version.
+- Ligne de devis : produit/service, quantité, prix unitaire, remise éventuelle, taxes.
+- Statut du devis : Brouillon, Envoyé, En négociation, Approuvé, Refusé, Expiré.
+- Notes : texte libre client ou interne.
+- Conditions spécifiques : clauses commerciales/légales.
+- Règles :
+  - Titre + client + au moins une ligne (montant ≥ 0) obligatoires.
+  - Date de création automatique et immuable.
+  - Modification autorisée seulement en Brouillon ou En négociation.
+  - Modification importante ⇒ nouvelle version ; seule la dernière version peut être approuvée.
+  - Devis approuvé immuable ; déclenche facturation.
+- Événements publiés : DevisCree, DevisModifie, NouvelleVersionDevisCreee, DevisEnvoye, DevisApprouve, DevisRefuse, DevisExpire.
+
+2) Supporting Domain — Facturation
+- Facture : agrégat racine (document comptable officiel).
+- Ligne de facture : dérivée de ligne de devis, figée à l’émission.
+- Date d’échéance : date limite de paiement.
+- Statut de facture : Émise, Réalisée, Partiellement soldée, Soldée, Annulée, Clôturée.
+- Historique de statuts : suivi des changements.
+- Avenant : correction d’une facture émise.
+- Profil de facturation : logo, SIRET, mentions légales, IBAN.
+- Règles :
+  - Facture générée automatiquement depuis devis approuvé.
+  - Titre : « Facture » + titre du devis.
+  - Facture émise immuable ; correction via avenant.
+  - Chaque statut apparaît au plus une fois dans l’historique.
+  - Facture Soldée et (a été) Réalisée ⇒ Clôturée automatiquement.
+- Événements publiés : FactureEmise, FactureEnvoyee, FactureRealisee, FactureAnnulee, FactureCloturee, AvenantGenere, AvenantValide.
+
+3) Supporting Domain — Trésorerie & recouvrement
+- Paiement : transaction partielle ou totale.
+- Mode de paiement : virement, carte, chèque, etc.
+- Reste à charge : montant restant après paiements et compensations.
+- Échéancier : plan de paiement.
+- Relance : rappel après échéance dépassée.
+- Mise en demeure : escalade après relances.
+- Règles :
+  - Paiement partiel : diminue le reste à charge, n’arrête pas la surveillance.
+  - Paiement total : reste à charge = 0, permet soldée.
+  - Facture non soldée après échéance : déclenche relance.
+  - Mise en demeure : peut informer la vente pour bloquer de nouveaux devis.
+- Événements publiés : PaiementEnregistre, PaiementRejete, PaiementRembourse, FacturePartiellementPayee, EcheanceDepassee, RappelPaiementEnvoye, MiseEnDemeureEmise.
+
+4) Supporting Domain — Gestion des avoirs
+- Avoir : montant dû au client, utilisable par remboursement ou compensation.
+- Remboursement : sortie d’argent.
+- Compensation : diminution du reste à charge d’une autre facture.
+- Statuts d’avoir : Disponible, Compensé, Remboursé, Expiré, Annulé.
+- Règles :
+  - Avoir possible après avenant validé / correction à la baisse.
+  - Pas de double consommation (pas remboursé et compensé pour le même montant).
+  - Avoir remboursé ou compensé doit être clôturé.
+- Événements publiés : AvoirCree, AvoirApplique, AvoirRembourse, AvoirExpire, AvoirAnnule, AvoirCompense.
+
+5) Shared Kernel — Catalogue & tiers
+- Client : destinataire des devis/factures.
+- Produit / service : élément du catalogue.
+- Devise : monnaie des montants.
+- Taxe / TVA : taux de taxe.
+- Règles :
+  - Référencé par les autres contextes sans ajouter de règles contradictoires.
+  - Doit rester simple et stable pour éviter le couplage.
+
+6) Generic / Supporting Domain — Import / export documentaire
+- Import Excel : transformation de données externes en devis/facture valide.
+- Export CSV / Excel / PDF : génération documentaire.
+- Fabrique de devis depuis import : service de transformation + validation.
+- Règles :
+  - Import = mêmes règles que création manuelle.
+  - Export = données validées par le contexte propriétaire.
+  - Import invalide : signaler les erreurs plutôt que créer un objet incomplet.
+
+7) Infrastructure / Supporting Domain — Notification et envoi
+- E-mail de devis, e-mail de facture, relance de paiement, gabarits.
+- Règles :
+  - Ne décide pas des statuts ; exécute des demandes d’envoi.
+  - Chaque envoi important est tracé.
+
+8) Infrastructure / Supporting Domain — Traçabilité et preuve
+- Historique d’action, historique de version, journal d’événements, preuve d’authenticité (option blockchain).
+- Règles :
+  - Observe les faits ; ne modifie pas les décisions métier.
+  - Événements critiques horodatés et rattachés au document.
+  - Blockchain : option envisagée, pas obligatoire au périmètre minimal.
+
+ÉVÉNEMENTS DU DOMAINE STRUCTURANTS
+- DevisCree : un devis valide a été créé.
+- NouvelleVersionDevisCreee : une modification importante a généré une nouvelle version.
+- DevisEnvoye : le devis a été transmis au client.
+- DevisApprouve : le client a accepté le devis ; déclenche la facturation.
+- DevisExpire : le devis ne peut plus être accepté.
+- FactureEmise : une facture a été générée à partir d’un devis approuvé.
+- FactureEnvoyee : la facture a été transmise au client.
+- FactureRealisee : le produit ou service associé a été réalisé.
+- PaiementEnregistre : un paiement a été reçu et doit mettre à jour le reste à charge.
+- FacturePartiellementPayee : la facture n’est pas encore totalement soldée.
+- EcheanceDepassee : la date limite de paiement est dépassée.
+- RappelPaiementEnvoye : une relance a été envoyée.
+- MiseEnDemeureEmise : une relance forte a été déclenchée.
+- AvenantValide : une correction de facture validée peut créer un avoir.
+- AvoirCree : un avoir est disponible.
+- AvoirRembourse : l’argent est effectivement reparti vers le client.
+- AvoirCompense : un avoir a diminué la dette d’une autre facture.
+
+
