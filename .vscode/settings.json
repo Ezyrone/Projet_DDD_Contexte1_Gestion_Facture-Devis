@@ -1,5 +1,7 @@
 {
     "conventionalCommits.scopes": [
-        "README"
+        "README",
+        "Project",
+        "Backend"
     ]
 }

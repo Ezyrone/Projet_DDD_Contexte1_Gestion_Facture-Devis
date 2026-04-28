@@ -5,6 +5,18 @@ Modélisation d'une application métier couvrant le cycle commercial complet :
 
 ---
 
+## 🛠️ Stack technique
+
+| Couche | Technologie | Rôle dans l'architecture DDD |
+| --- | --- | --- |
+| **Frontend** | Angular | Couche présentation — traduit les intentions utilisateur en commandes métier |
+| **Backend** | Java Spring Boot | Couche application & domaine — héberge les agrégats, services et événements |
+| **Tests** | Cucumber | Validation BDD — les scénarios Gherkin s'exécutent directement en tests d'acceptance |
+
+> L'architecture suit une approche **Hexagonale (Ports & Adapters)** : le domaine métier est isolé au centre, Angular et Spring Boot en sont des adaptateurs.
+
+---
+
 ## 👥 Équipe
 
 CENGO Killian · BARRY Mamadou · FRIOUICHEN Mohammed · CALAIS Adrien · CHEDAD Mehdi · ZOUINE Sanaa · GRZESZCZAK Jory
@@ -128,6 +140,75 @@ Le BDD permet :
 - Une validation claire des règles métier
 - Une compréhension partagée entre métier et développement
 - Une base directement exploitable pour les tests automatisés
+
+---
+
+## 🚀 Installation & lancement
+
+### Prérequis
+
+| Outil | Version minimale | Vérification |
+| --- | --- | --- |
+| Java JDK | 17 | `java -version` |
+| Maven | 3.9+ | `mvn -version` |
+| Node.js | 18 LTS | `node -v` |
+| Angular CLI | 17+ | `ng version` |
+
+```bash
+# Installer Angular CLI si absent
+npm install -g @angular/cli
+```
+
+### Structure du projet
+
+```text
+Projet/
+├── Backend/
+│   └── src/
+│       ├── main/java/com/esgi/ddd/
+│       │   ├── domain/
+│       │   │   ├── devis/          # Agrégat Devis, value objects, repository (port)
+│       │   │   ├── facture/        # Agrégat Facture
+│       │   │   └── shared/         # Interfaces communes (DomainEvent...)
+│       │   ├── application/        # Services applicatifs, commands
+│       │   ├── infrastructure/     # Implémentations des repositories (adaptateurs)
+│       │   └── interfaces/rest/    # Contrôleurs REST (adaptateurs)
+│       └── test/
+│           ├── java/.../cucumber/  # Step definitions Cucumber
+│           └── resources/features/ # Scénarios Gherkin
+└── Frontend/
+    └── src/app/                    # Composants Angular
+```
+
+### Backend — Spring Boot
+
+```bash
+cd Backend
+mvn spring-boot:run
+```
+
+> API disponible sur `http://localhost:8080`
+
+### Frontend — Angular
+
+```bash
+cd Frontend
+npm install
+ng serve
+```
+
+> Application disponible sur `http://localhost:4200`
+
+### Tests — Cucumber
+
+Les scénarios Gherkin sont exécutés via Maven depuis le Backend :
+
+```bash
+cd Backend
+mvn test
+```
+
+Les fichiers `.feature` se trouvent dans `Backend/src/test/resources/features/`.
 
 ---
 
