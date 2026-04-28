@@ -5,7 +5,7 @@ Modélisation d'une application métier couvrant le cycle commercial complet :
 
 ---
 
-## Équipe
+## 👥 Équipe
 
 CENGO Killian · BARRY Mamadou · FRIOUICHEN Mohammed · CALAIS Adrien · CHEDAD Mehdi · ZOUINE Sanaa · GRZESZCZAK Jory
 
@@ -13,7 +13,7 @@ M2 AL – ESGI Grenoble
 
 ---
 
-## Objectif
+## 🎯 Objectif
 
 Ce projet applique les principes du **Domain-Driven Design (DDD)** pour structurer une application de gestion commerciale. Les axes principaux sont :
 
@@ -29,7 +29,7 @@ L'approche repose sur :
 
 ---
 
-## Bounded Contexts
+## 🧩 Bounded Contexts
 
 ### Core Domains
 
@@ -56,7 +56,7 @@ L'approche repose sur :
 
 ---
 
-## Événements métier
+## 📡 Événements métier
 
 | Domaine | Événements |
 | --- | --- |
@@ -68,7 +68,7 @@ L'approche repose sur :
 
 ---
 
-## Règles métier
+## 📋 Règles métier
 
 ### Devis
 
@@ -97,7 +97,7 @@ L'approche repose sur :
 
 ---
 
-## Architecture & interactions
+## 🏗️ Architecture & interactions
 
 ```text
 Négociation & Vente  →  produit les devis
@@ -111,7 +111,7 @@ La communication entre contextes se fait via **événements asynchrones**.
 
 ---
 
-## BDD — Behavior-Driven Development
+## 🧪 BDD — Behavior-Driven Development
 
 Les comportements métier sont spécifiés en **Gherkin** pour assurer une compréhension commune entre les développeurs et les parties prenantes.
 
@@ -131,7 +131,7 @@ Le BDD permet :
 
 ---
 
-## Context Map
+## 🗺️ Context Map
 
 La Context Map formalise les relations entre bounded contexts et les patterns DDD employés :
 
