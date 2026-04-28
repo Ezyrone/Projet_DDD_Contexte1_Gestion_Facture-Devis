@@ -1,0 +1,52 @@
+flowchart LR
+  %% Types de domaines DDD
+  subgraph CORE["Core Domain"]
+    SALES["Gestion des devis<br/>(Négociation & Vente)"]
+  end
+
+  subgraph SUPPORT["Supporting Domains"]
+    INVOICE["Facturation"]
+    PAYMENT["Paiements & Relances<br/>(Trésorerie & Recouvrement)"]
+    CREDIT["Gestion des avoirs"]
+    NOTIF["Notification & Envoi"]
+    TRACE["Traçabilité & Preuve"]
+  end
+
+  subgraph GENERIC["Generic Domain"]
+    DOC["Import / Export documentaire"]
+  end
+
+  subgraph SHARED["Shared Kernel"]
+    CATALOG["Catalogue & Tiers<br/>(Clients, Produits, Services)"]
+  end
+
+  %% Relations structurantes
+  CATALOG <-->|Shared Kernel| SALES
+  CATALOG <-->|Shared Kernel| INVOICE
+
+  SALES -->|Customer-Supplier<br/>DevisApprouve| INVOICE
+  INVOICE -->|Conformist<br/>FactureEmise| PAYMENT
+  INVOICE -->|Customer-Supplier<br/>FactureEmise| NOTIF
+  PAYMENT -->|Customer-Supplier<br/>EcheanceDepassee / RappelPaiementEnvoye| NOTIF
+  INVOICE -->|Customer-Supplier<br/>AvenantValide| CREDIT
+  CREDIT -->|Domain Events<br/>AvoirCompense / AvoirRembourse| PAYMENT
+
+  DOC -->|ACL<br/>Import devis valide| SALES
+  DOC -->|ACL<br/>Import / export facture| INVOICE
+
+  SALES -->|Domain Events| TRACE
+  INVOICE -->|Domain Events| TRACE
+  PAYMENT -->|Domain Events| TRACE
+  CREDIT -->|Domain Events| TRACE
+  NOTIF -->|Logs d'envoi| TRACE
+  DOC -->|Traces import/export| TRACE
+
+  classDef core fill:#ffe0b2,stroke:#e65100,stroke-width:2px,color:#000;
+  classDef support fill:#e3f2fd,stroke:#1565c0,stroke-width:1.5px,color:#000;
+  classDef generic fill:#f3e5f5,stroke:#6a1b9a,stroke-width:1.5px,color:#000;
+  classDef shared fill:#e8f5e9,stroke:#2e7d32,stroke-width:1.5px,color:#000;
+
+  class SALES core;
+  class INVOICE,PAYMENT,CREDIT,NOTIF,TRACE support;
+  class DOC generic;
+  class CATALOG shared;

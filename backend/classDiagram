@@ -1,0 +1,278 @@
+classDiagram
+  %% ── SHARED KERNEL ─────────────────────────────
+  class User {
+    +UUID id
+    +String nom
+    +String prenom
+    +String email
+    +String adresse
+    +TypeUser type
+  }
+  class TypeUser {
+    <<enumeration>>
+    CLIENT
+    COMMERCIAL
+    COMPTABLE
+    ADMIN
+  }
+  class Produit {
+    +UUID id
+    +String nom
+    +Float prixUnitaire
+    +String description
+  }
+  class Taxe {
+    +UUID id
+    +String libelle
+    +Float taux
+  }
+  class Devise {
+    +String code
+    +String symbole
+  }
+
+  %% ── DEVIS (Core Domain) ───────────────────────
+  class Devis {
+    +UUID id
+    +String titre
+    +DateTime dateCreation
+    +DateTime dateModification
+    +DateTime dateValidite
+    +StatutDevis statut
+    +String version
+    +creer()
+    +modifier()
+    +envoyerAuClient()
+    +approuver()
+    +refuser()
+    +verifierExpiration()
+    +ajouterNote()
+    +publierEvenement()
+  }
+  class VersionDevis {
+    +UUID id
+    +String numeroVersion
+    +DateTime dateCreation
+    +Boolean archivee
+    +archiver()
+  }
+  class LigneDevis {
+    +UUID id
+    +Integer quantite
+    +Float prixUnitaire
+    +Float remise
+    +Float montantTotal
+    +calculerMontant()
+  }
+  class NoteDevis {
+    +UUID id
+    +String contenu
+    +DateTime dateCreation
+    +Boolean interne
+  }
+  class StatutDevis {
+    <<enumeration>>
+    BROUILLON
+    ENVOYE
+    EN_NEGOCIATION
+    APPROUVE
+    REFUSE
+    EXPIRE
+  }
+
+  %% ── FACTURATION (Core Domain) ─────────────────
+  class Facture {
+    +UUID id
+    +String titre
+    +DateTime dateCreation
+    +DateTime dateEcheance
+    +StatutFacture statut
+    +Float montantTotal
+    +Float resteACharge
+    +emettre()
+    +annuler()
+    +marquerRealisee()
+    +verifierCloture()
+    +publierEvenement()
+  }
+  class LigneFacture {
+    +UUID id
+    +String designation
+    +Integer quantite
+    +Float prixUnitaire
+    +Float remise
+    +Float montantTotal
+  }
+  class HistoriqueStatutFacture {
+    +UUID id
+    +StatutFacture statut
+    +DateTime dateChangement
+    +String acteur
+  }
+  class ProfilFacturation {
+    +String logo
+    +String siret
+    +String mentionsLegales
+    +String iban
+  }
+  class Avenant {
+    +UUID id
+    +DateTime dateCreation
+    +Float montantCorrection
+    +String motif
+    +valider()
+    +publierEvenement()
+  }
+  class StatutFacture {
+    <<enumeration>>
+    EMISE
+    REALISEE
+    PARTIELLEMENT_SOLDEE
+    SOLDEE
+    ANNULEE
+    CLOTUREE
+  }
+
+  %% ── PAIEMENTS & RELANCES (Supporting Domain) ──
+  class Paiement {
+    +UUID id
+    +Float montant
+    +DateTime datePaiement
+    +ModePaiement mode
+    +StatutPaiement statut
+    +enregistrer()
+    +rejeter()
+    +rembourser()
+  }
+  class ModePaiement {
+    <<enumeration>>
+    VIREMENT
+    CARTE
+    CHEQUE
+    PRELEVEMENT
+  }
+  class StatutPaiement {
+    <<enumeration>>
+    ENREGISTRE
+    REJETE
+    REMBOURSE
+  }
+  class Echeancier {
+    +UUID id
+    +List~DateTime~ echeances
+    +List~Float~ montants
+    +calculerProchaine()
+  }
+  class Relance {
+    +UUID id
+    +Integer niveau
+    +DateTime dateEnvoi
+    +String destinataire
+    +TypeRelance type
+    +envoyer()
+  }
+  class TypeRelance {
+    <<enumeration>>
+    RAPPEL_NIVEAU1
+    RAPPEL_NIVEAU2
+    MISE_EN_DEMEURE
+  }
+
+  %% ── AVOIRS (Supporting Domain) ────────────────
+  class Avoir {
+    +UUID id
+    +Float montant
+    +DateTime dateCreation
+    +DateTime dateExpiration
+    +StatutAvoir statut
+    +rembourser()
+    +compenser()
+    +annuler()
+    +verifierExpiration()
+  }
+  class StatutAvoir {
+    <<enumeration>>
+    DISPONIBLE
+    COMPENSE
+    REMBOURSE
+    EXPIRE
+    ANNULE
+  }
+
+  %% ── IMPORT / EXPORT (Generic Domain) ──────────
+  class DocumentExporte {
+    +UUID id
+    +FormatExport format
+    +DateTime dateExport
+    +String chemin
+    +String acteur
+  }
+  class FormatExport {
+    <<enumeration>>
+    PDF
+    CSV
+    EXCEL
+    EMAIL
+  }
+  class ImportDocument {
+    +UUID id
+    +String fichierSource
+    +DateTime dateImport
+    +List~String~ erreurs
+    +Boolean succes
+    +valider()
+    +transformer()
+  }
+
+  %% ── TRAÇABILITE (Infrastructure Domain) ───────
+  class EvenementDomaine {
+    +UUID id
+    +String type
+    +DateTime horodatage
+    +String acteur
+    +String documentId
+    +String payload
+  }
+
+  %% ── RELATIONS ──────────────────────────────────
+
+  Devis "1" --> "1" User : concerne
+  Devis "1" *-- "1..*" LigneDevis : contient
+  Devis "1" *-- "0..*" NoteDevis : possède
+  Devis "1" *-- "1..*" VersionDevis : versionné par
+  Devis "1" --> "1" StatutDevis : a pour statut
+  LigneDevis "1" --> "1" Produit : référence
+  LigneDevis "1" --> "0..1" Taxe : applique
+
+  Facture "1" --> "1" User : destinée à
+  Facture "1" *-- "1..*" LigneFacture : contient
+  Facture "1" *-- "1..*" HistoriqueStatutFacture : historique
+  Facture "1" --> "1" StatutFacture : a pour statut
+  Facture "1" --> "0..1" ProfilFacturation : personnalisée par
+  Facture "0..1" --> "1" Devis : générée depuis
+  Facture "1" *-- "0..*" Avenant : corrigée par
+
+  Paiement "0..*" --> "1" Facture : règle
+  Paiement "1" --> "1" ModePaiement : réalisé par
+  Paiement "1" --> "1" StatutPaiement : a pour statut
+  Echeancier "1" --> "1" Facture : planifie
+  Relance "0..*" --> "1" Facture : relance
+  Relance "1" --> "1" TypeRelance : de type
+
+  Avoir "0..*" --> "0..1" Avenant : créé depuis
+  Avoir "1" --> "1" StatutAvoir : a pour statut
+  Avoir "0..*" --> "0..1" Facture : compensé sur
+
+  DocumentExporte "0..*" --> "0..1" Devis : export de
+  DocumentExporte "0..*" --> "0..1" Facture : export de
+  DocumentExporte "1" --> "1" FormatExport : au format
+  ImportDocument "0..1" --> "0..1" Devis : transformé en
+
+  EvenementDomaine "0..*" --> "0..1" Devis : tracé
+  EvenementDomaine "0..*" --> "0..1" Facture : tracé
+  EvenementDomaine "0..*" --> "0..1" Paiement : tracé
+  EvenementDomaine "0..*" --> "0..1" Avoir : tracé
+
+  User "1" --> "1" TypeUser : a pour type
+  Devis --> Devise : libellé en
+  Facture --> Devise : libellé en
