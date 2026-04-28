@@ -3,6 +3,7 @@ import { Component, computed, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
+import { FrontendEmailService } from '../../core/notification/frontend-email.service';
 import { ConfirmService } from '../../shared/ui/confirm/confirm.service';
 import { ButtonComponent } from '../../shared/ui/button/button.component';
 import { EmptyStateComponent } from '../../shared/ui/state/empty-state.component';
@@ -73,6 +74,7 @@ export class ResourceListPageComponent {
   private readonly router = inject(Router);
   private readonly auth = inject(AuthService);
   private readonly confirm = inject(ConfirmService);
+  private readonly emailService = inject(FrontendEmailService);
   private readonly toast = inject(ToastService);
   readonly search = this.route.snapshot.queryParamMap.get('search') ?? '';
 
@@ -114,6 +116,16 @@ export class ResourceListPageComponent {
       if (!accepted) {
         return;
       }
+    }
+
+    if (this.route.snapshot.data['resource'] === 'notifications' && label.toLowerCase().includes('renvoyer')) {
+      const sent = this.emailService.send({
+        to: 'client@example.com',
+        subject: 'Relance de notification de document',
+        body: 'Bonjour,\n\nNous vous renvoyons le document demandé.\n\nCordialement.',
+      });
+      this.toast.push(sent ? 'success' : 'error', sent ? 'Client mail ouvert.' : 'Destinataire manquant.');
+      return;
     }
 
     this.toast.push('info', `Action "${label}" déclenchée.`);
