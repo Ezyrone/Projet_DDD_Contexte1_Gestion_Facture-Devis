@@ -1,6 +1,10 @@
 package com.example.facturation.support.facturation.domain.model;
 
+import com.example.facturation.sharedkernel.model.AbstractAggregate;
 import com.example.facturation.sharedkernel.model.Devise;
+import com.example.facturation.support.facturation.domain.event.AvenantValide;
+import com.example.facturation.support.facturation.domain.event.FactureAnnulee;
+import com.example.facturation.support.facturation.domain.event.FactureEmise;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -14,12 +18,16 @@ import java.util.UUID;
 /**
  * Supporting Domain (Facturation) — Aggregate Root Facture.
  * Gère le cycle de vie d'une facture : émission, annulation, clôture.
+ * <p>
+ * Étend {@link AbstractAggregate} pour enregistrer les événements de domaine
+ * qui seront publiés via {@code ApplicationEventPublisher} par le service applicatif.
+ * </p>
  */
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class Facture {
+public class Facture extends AbstractAggregate {
 
     private UUID id;
     private String titre;
@@ -54,6 +62,7 @@ public class Facture {
 
     /**
      * Émet la facture — passe en statut EMISE.
+     * Publie un événement {@link FactureEmise} consommé par Paiement (Conformist) et Notification (Customer-Supplier).
      */
     public void emettre() {
         this.id = UUID.randomUUID();
@@ -61,6 +70,7 @@ public class Facture {
         this.statut = StatutFacture.EMISE;
         this.resteACharge = this.montantTotal;
         enregistrerChangementStatut(StatutFacture.EMISE, "SYSTEME");
+        registerEvent(new FactureEmise(this.id, this.clientId, this.montantTotal, this.dateCreation));
     }
 
     /**
@@ -72,6 +82,7 @@ public class Facture {
         }
         this.statut = StatutFacture.ANNULEE;
         enregistrerChangementStatut(StatutFacture.ANNULEE, "SYSTEME");
+        registerEvent(new FactureAnnulee(this.id, this.clientId, LocalDateTime.now()));
     }
 
     /**
@@ -96,10 +107,16 @@ public class Facture {
     }
 
     /**
-     * Publie un événement de domaine (placeholder pour l'infrastructure).
+     * Valide un avenant et publie un événement {@link AvenantValide}
+     * consommé par le module Avoir (Customer-Supplier).
      */
-    public void publierEvenement() {
-        // Délégué à l'infrastructure — sera implémenté via le service applicatif
+    public void validerAvenant(Avenant avenant) {
+        avenant.valider();
+        this.avenants.add(avenant);
+        registerEvent(new AvenantValide(
+                avenant.getId(), this.id, avenant.getMontantCorrection(),
+                avenant.getMotif(), LocalDateTime.now()
+        ));
     }
 
     // ── Méthodes internes ────────────────────────────

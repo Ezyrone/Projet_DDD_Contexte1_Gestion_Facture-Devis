@@ -1,5 +1,8 @@
 package com.example.facturation.support.paiement.domain.model;
 
+import com.example.facturation.sharedkernel.model.AbstractAggregate;
+import com.example.facturation.support.paiement.domain.event.PaiementEnregistre;
+import com.example.facturation.support.paiement.domain.event.PaiementRejete;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -11,12 +14,15 @@ import java.util.UUID;
 /**
  * Supporting Domain (Paiement) — Aggregate Root Paiement.
  * Représente un paiement associé à une facture.
+ * <p>
+ * Étend {@link AbstractAggregate} pour enregistrer les événements de domaine.
+ * </p>
  */
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class Paiement {
+public class Paiement extends AbstractAggregate {
 
     private UUID id;
     private float montant;
@@ -34,6 +40,7 @@ public class Paiement {
         this.id = UUID.randomUUID();
         this.datePaiement = LocalDateTime.now();
         this.statut = StatutPaiement.ENREGISTRE;
+        registerEvent(new PaiementEnregistre(this.id, this.factureId, this.montant, this.datePaiement));
     }
 
     /**
@@ -44,6 +51,7 @@ public class Paiement {
             throw new IllegalStateException("Seul un paiement enregistré peut être rejeté.");
         }
         this.statut = StatutPaiement.REJETE;
+        registerEvent(new PaiementRejete(this.id, this.factureId, LocalDateTime.now()));
     }
 
     /**

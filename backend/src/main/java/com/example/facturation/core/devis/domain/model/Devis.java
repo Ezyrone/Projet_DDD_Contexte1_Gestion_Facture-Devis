@@ -1,5 +1,10 @@
 package com.example.facturation.core.devis.domain.model;
 
+import com.example.facturation.core.devis.domain.event.DevisApprouve;
+import com.example.facturation.core.devis.domain.event.DevisCree;
+import com.example.facturation.core.devis.domain.event.DevisEnvoye;
+import com.example.facturation.core.devis.domain.event.DevisRefuse;
+import com.example.facturation.sharedkernel.model.AbstractAggregate;
 import com.example.facturation.sharedkernel.model.Devise;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -14,12 +19,16 @@ import java.util.UUID;
 /**
  * Core Domain (Devis) — Aggregate Root Devis.
  * Racine de l'agrégat « Devis » : gère les lignes, notes, versions et le cycle de vie d'un devis.
+ * <p>
+ * Étend {@link AbstractAggregate} pour enregistrer les événements de domaine
+ * qui seront publiés via {@code ApplicationEventPublisher} par le service applicatif.
+ * </p>
  */
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class Devis {
+public class Devis extends AbstractAggregate {
 
     private UUID id;
     private String titre;
@@ -54,6 +63,7 @@ public class Devis {
         this.dateCreation = LocalDateTime.now();
         this.dateModification = LocalDateTime.now();
         this.statut = StatutDevis.BROUILLON;
+        registerEvent(new DevisCree(this.id, this.titre, this.clientId, this.dateCreation));
     }
 
     /**
@@ -72,10 +82,12 @@ public class Devis {
         }
         this.statut = StatutDevis.ENVOYE;
         this.dateModification = LocalDateTime.now();
+        registerEvent(new DevisEnvoye(this.id, this.clientId, LocalDateTime.now()));
     }
 
     /**
      * Approuve le devis — passe en statut APPROUVE.
+     * Publie un événement {@link DevisApprouve} consommé par le module Facturation (Customer-Supplier).
      */
     public void approuver() {
         if (this.statut != StatutDevis.ENVOYE && this.statut != StatutDevis.EN_NEGOCIATION) {
@@ -83,6 +95,11 @@ public class Devis {
         }
         this.statut = StatutDevis.APPROUVE;
         this.dateModification = LocalDateTime.now();
+
+        float montantTotal = this.lignes.stream()
+                .map(l -> { l.calculerMontant(); return l.getMontantTotal(); })
+                .reduce(0f, Float::sum);
+        registerEvent(new DevisApprouve(this.id, this.clientId, montantTotal, LocalDateTime.now()));
     }
 
     /**
@@ -94,6 +111,7 @@ public class Devis {
         }
         this.statut = StatutDevis.REFUSE;
         this.dateModification = LocalDateTime.now();
+        registerEvent(new DevisRefuse(this.id, this.clientId, LocalDateTime.now()));
     }
 
     /**
@@ -114,12 +132,5 @@ public class Devis {
     public void ajouterNote(NoteDevis note) {
         this.notes.add(note);
         this.dateModification = LocalDateTime.now();
-    }
-
-    /**
-     * Publie un événement de domaine (placeholder pour l'infrastructure d'événements).
-     */
-    public void publierEvenement() {
-        // Délégué à l'infrastructure — sera implémenté via le service applicatif
     }
 }
