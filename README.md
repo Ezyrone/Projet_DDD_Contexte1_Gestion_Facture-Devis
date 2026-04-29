@@ -222,3 +222,141 @@ La Context Map formalise les relations entre bounded contexts et les patterns DD
 | **Conformist** | Le downstream adopte le modèle de l'upstream |
 | **Shared Kernel** | Modèle partagé entre deux contextes |
 | **Anti-Corruption Layer** | Isolation d'un contexte externe par une couche de traduction |
+
+
+########################################
+# 📘 DEVIS (Négociation & Vente)
+########################################
+
+POST   /devis
+GET    /devis
+GET    /devis/{devisId}
+DELETE /devis/{devisId}
+
+POST /devis/{devisId}/envoyer
+POST /devis/{devisId}/approuver
+POST /devis/{devisId}/refuser
+POST /devis/{devisId}/expirer
+
+POST /devis/{devisId}/versions
+GET  /devis/{devisId}/versions
+GET  /devis/{devisId}/versions/{versionId}
+
+POST   /devis/{devisId}/lignes
+PUT    /devis/{devisId}/lignes/{ligneId}
+DELETE /devis/{devisId}/lignes/{ligneId}
+GET    /devis/{devisId}/lignes
+
+POST /devis/{devisId}/notes
+PUT  /devis/{devisId}/notes/{noteId}
+GET  /devis/{devisId}/notes
+
+GET /devis/{devisId}/export/pdf
+GET /devis/{devisId}/export/excel
+
+
+########################################
+# 💰 FACTURATION
+########################################
+
+GET /factures
+GET /factures/{factureId}
+
+POST /factures/{factureId}/envoyer
+POST /factures/{factureId}/realiser
+POST /factures/{factureId}/annuler
+POST /factures/{factureId}/cloturer
+
+PUT /factures/{factureId}/echeance
+
+GET /factures/{factureId}/statuts
+
+GET /factures/{factureId}/export/pdf
+
+
+########################################
+# 💳 PAIEMENTS & RECOUVREMENT
+########################################
+
+POST /paiements
+GET  /paiements
+GET  /paiements/{paiementId}
+GET  /factures/{factureId}/paiements
+
+POST /paiements/{paiementId}/rejeter
+POST /paiements/{paiementId}/rembourser
+
+POST /factures/{factureId}/relances
+GET  /factures/{factureId}/relances
+
+POST /factures/{factureId}/mise-en-demeure
+
+
+########################################
+# 🧾 AVOIRS
+########################################
+
+GET /avoirs
+GET /avoirs/{avoirId}
+
+POST /avoirs/{avoirId}/rembourser
+POST /avoirs/{avoirId}/compenser
+POST /avoirs/{avoirId}/annuler
+POST /avoirs/{avoirId}/expirer
+
+
+########################################
+# 📦 CATALOGUE & TIERS
+########################################
+
+POST   /clients
+GET    /clients
+GET    /clients/{clientId}
+PUT    /clients/{clientId}
+DELETE /clients/{clientId}
+
+POST   /produits
+GET    /produits
+GET    /produits/{produitId}
+PUT    /produits/{produitId}
+DELETE /produits/{produitId}
+
+
+########################################
+# 📥📤 IMPORT / EXPORT
+########################################
+
+POST /imports/devis
+POST /imports/factures
+
+GET /exports/devis
+GET /exports/factures
+
+
+########################################
+# 📧 NOTIFICATIONS
+########################################
+
+POST /notifications/devis/{devisId}
+POST /notifications/factures/{factureId}
+POST /notifications/relances/{factureId}
+
+
+########################################
+# 📜 TRAÇABILITÉ & AUDIT
+########################################
+
+GET /audit/devis/{devisId}
+GET /audit/factures/{factureId}
+GET /audit/avoirs/{avoirId}
+GET /audit/paiements/{paiementId}
+
+
+########################################
+# ⚙️ TECHNIQUE
+########################################
+
+GET  /health
+
+POST /webhooks/paiement
+POST /webhooks/email

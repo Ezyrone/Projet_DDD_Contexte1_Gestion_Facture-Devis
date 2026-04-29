@@ -13,6 +13,8 @@ public interface RelanceRepository {
 
     Optional<Relance> findById(UUID id);
 
+    List<Relance> findAll();
+
     List<Relance> findByFactureId(UUID factureId);
 
     Relance save(Relance relance);

@@ -13,6 +13,8 @@ public interface PaiementRepository {
 
     Optional<Paiement> findById(UUID id);
 
+    List<Paiement> findAll();
+
     List<Paiement> findByFactureId(UUID factureId);
 
     Paiement save(Paiement paiement);

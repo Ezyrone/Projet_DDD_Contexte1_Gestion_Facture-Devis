@@ -2,6 +2,7 @@ package com.example.facturation.sharedkernel.repository;
 
 import com.example.facturation.sharedkernel.model.Produit;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -15,4 +16,6 @@ public interface ProduitRepository {
     Produit save(Produit produit);
 
     void deleteById(UUID id);
+
+    List<Produit> findAll();
 }
