@@ -32,31 +32,31 @@ export const routes: Routes = [
       {
         path: 'quotes',
         canActivate: [roleGuard],
-        data: { roles: ['COMMERCIAL', 'CLIENT'], resource: 'quotes' },
+        data: { roles: ['COMMERCIAL', 'CLIENT', 'FINANCE'], resource: 'quotes' },
         loadComponent: () => import('./features/shared/resource-list.page').then((m) => m.ResourceListPageComponent),
       },
       {
         path: 'quotes/new',
         canActivate: [roleGuard],
-        data: { roles: ['COMMERCIAL'], mode: 'create' },
+        data: { roles: ['COMMERCIAL', 'FINANCE'], mode: 'create' },
         loadComponent: () => import('./features/quotes/quote-form.page').then((m) => m.QuoteFormPageComponent),
       },
       {
         path: 'quotes/:id/edit',
         canActivate: [roleGuard],
-        data: { roles: ['COMMERCIAL'], mode: 'edit' },
+        data: { roles: ['COMMERCIAL', 'FINANCE'], mode: 'edit' },
         loadComponent: () => import('./features/quotes/quote-form.page').then((m) => m.QuoteFormPageComponent),
       },
       {
         path: 'quotes/:id',
         canActivate: [roleGuard],
-        data: { roles: ['COMMERCIAL', 'CLIENT'], resource: 'quote' },
+        data: { roles: ['COMMERCIAL', 'CLIENT', 'FINANCE'], resource: 'quote' },
         loadComponent: () => import('./features/shared/resource-detail.page').then((m) => m.ResourceDetailPageComponent),
       },
       {
         path: 'quotes/:id/versions/:versionId',
         canActivate: [roleGuard],
-        data: { roles: ['COMMERCIAL', 'CLIENT'] },
+        data: { roles: ['COMMERCIAL', 'CLIENT', 'FINANCE'] },
         loadComponent: () => import('./features/quotes/quote-version.page').then((m) => m.QuoteVersionPageComponent),
       },
       {

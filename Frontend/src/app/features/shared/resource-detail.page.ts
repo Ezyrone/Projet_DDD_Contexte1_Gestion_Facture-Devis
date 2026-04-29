@@ -9,6 +9,7 @@ import { ConfirmService } from '../../shared/ui/confirm/confirm.service';
 import { QuotesApiService, QuoteItem } from '../quotes/data/quotes-api.service';
 import { AvoirsApiService, AvoirItem } from './data/avoirs-api.service';
 import { UsersApiService, UserItem } from './data/users-api.service';
+import { InvoicesApiService, InvoiceItem } from '../invoices/data/invoices-api.service';
 import { AuditApiService, AuditEventItem } from '../audit/data/audit-api.service';
 import { catchError, forkJoin, of } from 'rxjs';
 
@@ -64,6 +65,7 @@ export class ResourceDetailPageComponent implements OnInit {
   private readonly avoirsApi = inject(AvoirsApiService);
   private readonly usersApi = inject(UsersApiService);
   private readonly auditApi = inject(AuditApiService);
+  private readonly invoicesApi = inject(InvoicesApiService);
 
   readonly loading = signal(false);
   readonly errorMsg = signal<string | null>(null);
@@ -95,10 +97,7 @@ export class ResourceDetailPageComponent implements OnInit {
         this.loadAuditDetail(id);
         break;
       case 'invoice':
-        this.pageTitle.set('Détail de la facture');
-        this.actions.set(['Exporter']);
-        this.sections.set([{ title: 'Information', items: ['Le controller facture n\'est pas encore implémenté côté backend.'] }]);
-        this.loading.set(false);
+        this.loadInvoiceDetail(id);
         break;
       default:
         this.pageTitle.set('Détail');
@@ -162,6 +161,59 @@ export class ResourceDetailPageComponent implements OnInit {
           items: (devis.versions ?? []).length > 0
             ? (devis.versions ?? []).map((v) => `${v.numeroVersion} — ${this.formatDate(v.dateCreation)} ${v.archivee ? '(archivée)' : ''}`)
             : ['Aucune version archivée.'],
+        },
+      ]);
+      this.loading.set(false);
+    });
+  }
+
+  private loadInvoiceDetail(id: string): void {
+    forkJoin({
+      invoice: this.invoicesApi.getById(id).pipe(catchError(() => of(null))),
+      users: this.usersApi.getAll().pipe(catchError(() => of([] as UserItem[]))),
+    }).subscribe(({ invoice, users }) => {
+      if (!invoice) {
+        this.errorMsg.set('Facture introuvable.');
+        this.loading.set(false);
+        return;
+      }
+      const client = users.find((u) => u.id === invoice.clientId);
+      const clientName = client ? `${client.prenom} ${client.nom}` : invoice.clientId;
+
+      this.pageTitle.set(`Détail de la facture — ${invoice.titre ?? 'Sans titre'}`);
+      
+      const actions = ['Exporter PDF'];
+      if (invoice.statut !== 'ANNULEE' && invoice.statut !== 'CLOTUREE') {
+        actions.push('Annuler', 'Payer');
+      }
+      if (invoice.statut === 'EMISE') {
+        actions.push('Marquer réalisée');
+      }
+      this.actions.set(actions);
+
+      this.sections.set([
+        {
+          title: 'Récap client',
+          items: [
+            `Client : ${clientName}`,
+            client ? `Email : ${client.email}` : '',
+            `Statut : ${this.formatStatut(invoice.statut)}`,
+            `Créée le : ${this.formatDate(invoice.dateCreation)}`,
+            invoice.dateEcheance ? `Échéance : ${this.formatDate(invoice.dateEcheance)}` : '',
+          ].filter(Boolean),
+        },
+        {
+          title: 'Montants',
+          items: [
+            `Montant total : ${invoice.montantTotal} €`,
+            `Reste à charge : ${invoice.resteACharge} €`,
+          ],
+        },
+        {
+          title: 'Références',
+          items: [
+            invoice.devisId ? `Devis associé : ${invoice.devisId.substring(0, 8)}...` : 'Aucun devis associé',
+          ],
         },
       ]);
       this.loading.set(false);
@@ -264,8 +316,50 @@ export class ResourceDetailPageComponent implements OnInit {
       this.handleDevisAction(action, id);
       return;
     }
+    
+    if (resource === 'invoice') {
+      this.handleInvoiceAction(action, id);
+      return;
+    }
+    
+    if (resource === 'credit') {
+      this.handleCreditAction(action, id);
+      return;
+    }
+
+    if (action === 'Exporter') {
+      void this.router.navigate(['/documents/export']);
+      return;
+    }
 
     this.toast.push('info', `Action "${action}" déclenchée.`);
+  }
+
+  private handleInvoiceAction(action: string, id: string): void {
+    if (action === 'Annuler') {
+      this.invoicesApi.annuler(id).subscribe({
+        next: () => { this.toast.push('success', 'Facture annulée.'); this.loadData(); },
+        error: (e) => this.toast.push('error', 'Erreur lors de l\'annulation.'),
+      });
+    } else if (action === 'Exporter PDF') {
+      void this.router.navigate(['/documents/export'], { queryParams: { devisId: id } });
+    } else {
+      this.toast.push('info', `Action "${action}" déclenchée sur facture.`);
+    }
+  }
+
+  private handleCreditAction(action: string, id: string): void {
+    if (action === 'Compensation') {
+      this.avoirsApi.compensate(id).subscribe({
+        next: () => { this.toast.push('success', 'Avoir compensé.'); this.loadData(); },
+        error: (e) => this.toast.push('error', 'Erreur lors de la compensation.'),
+      });
+    } else if (action === 'Remboursement') {
+      this.avoirsApi.refund(id).subscribe({
+        next: () => { this.toast.push('success', 'Avoir remboursé.'); this.loadData(); },
+        error: (e) => this.toast.push('error', 'Erreur lors du remboursement.'),
+      });
+    }
   }
 
   private handleDevisAction(action: string, id: string): void {
@@ -290,6 +384,9 @@ export class ResourceDetailPageComponent implements OnInit {
           next: () => { this.toast.push('success', 'Devis refusé.'); this.loadData(); },
           error: (e) => this.toast.push('error', e.error?.message || 'Impossible de refuser le devis.'),
         });
+        break;
+      case 'Exporter':
+        void this.router.navigate(['/documents/export'], { queryParams: { devisId: id } });
         break;
       default:
         this.toast.push('info', `Action "${action}" déclenchée.`);

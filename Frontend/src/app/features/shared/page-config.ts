@@ -24,8 +24,8 @@ export const LIST_PAGE_CONFIG: Record<string, ListPageConfig> = {
     emptyActionLabel: 'Créer un devis',
     actions: {
       COMMERCIAL: [{ label: 'Créer un devis' }],
-      FINANCE: [{ label: 'Voir', variant: 'secondary' }],
-      CLIENT: [{ label: 'Approuver', variant: 'primary' }, { label: 'Refuser', variant: 'danger', critical: true }],
+      FINANCE: [],
+      CLIENT: [],
     },
   },
   invoices: {
@@ -35,12 +35,9 @@ export const LIST_PAGE_CONFIG: Record<string, ListPageConfig> = {
     filters: ['Statut', 'Client'],
     emptyActionLabel: 'Aucune facture',
     actions: {
-      COMMERCIAL: [{ label: 'Voir', variant: 'secondary' }],
-      FINANCE: [
-        { label: 'Exporter PDF', variant: 'secondary' },
-        { label: 'Annuler', variant: 'danger', critical: true },
-      ],
-      CLIENT: [{ label: 'Payer' }],
+      COMMERCIAL: [],
+      FINANCE: [],
+      CLIENT: [],
     },
   },
   payments: {
@@ -51,7 +48,7 @@ export const LIST_PAGE_CONFIG: Record<string, ListPageConfig> = {
     emptyActionLabel: 'Enregistrer un paiement',
     actions: {
       COMMERCIAL: [],
-      FINANCE: [{ label: 'Enregistrer un paiement' }, { label: 'Rembourser', variant: 'danger', critical: true }],
+      FINANCE: [{ label: 'Enregistrer un paiement' }],
       CLIENT: [],
     },
   },
@@ -63,11 +60,7 @@ export const LIST_PAGE_CONFIG: Record<string, ListPageConfig> = {
     emptyActionLabel: 'Lancer une relance',
     actions: {
       COMMERCIAL: [],
-      FINANCE: [
-        { label: 'Envoyer relance niveau 1', variant: 'secondary' },
-        { label: 'Envoyer relance niveau 2', variant: 'secondary' },
-        { label: 'Déclencher mise en demeure', variant: 'danger', critical: true },
-      ],
+      FINANCE: [],
       CLIENT: [],
     },
   },
@@ -79,11 +72,7 @@ export const LIST_PAGE_CONFIG: Record<string, ListPageConfig> = {
     emptyActionLabel: 'Créer un avoir',
     actions: {
       COMMERCIAL: [],
-      FINANCE: [
-        { label: 'Appliquer sur facture' },
-        { label: 'Rembourser', variant: 'danger', critical: true },
-        { label: 'Annuler', variant: 'danger', critical: true },
-      ],
+      FINANCE: [],
       CLIENT: [],
     },
   },
@@ -94,8 +83,8 @@ export const LIST_PAGE_CONFIG: Record<string, ListPageConfig> = {
     filters: ['Type', 'Statut'],
     emptyActionLabel: 'Renvoyer une notification',
     actions: {
-      COMMERCIAL: [{ label: 'Voir détail', variant: 'secondary' }],
-      FINANCE: [{ label: 'Renvoyer', variant: 'secondary' }],
+      COMMERCIAL: [],
+      FINANCE: [],
       CLIENT: [],
     },
   },
@@ -106,7 +95,7 @@ export const LIST_PAGE_CONFIG: Record<string, ListPageConfig> = {
     filters: ['Type', 'Acteur'],
     emptyActionLabel: 'Exporter le journal',
     actions: {
-      COMMERCIAL: [{ label: 'Voir détail', variant: 'secondary' }],
+      COMMERCIAL: [],
       FINANCE: [{ label: 'Exporter journal', variant: 'secondary' }],
       CLIENT: [],
     },

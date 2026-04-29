@@ -18,8 +18,9 @@ import { AuditStore } from '../audit/data/audit.store';
 import { AvoirsApiService, AvoirItem } from './data/avoirs-api.service';
 import { PaiementsApiService } from './data/paiements-api.service';
 import { UsersApiService, UserItem } from './data/users-api.service';
+import { InvoicesApiService, InvoiceItem } from '../invoices/data/invoices-api.service';
 import { LIST_PAGE_CONFIG, ListPageConfig } from './page-config';
-import { catchError, of } from 'rxjs';
+import { catchError, forkJoin, of } from 'rxjs';
 
 @Component({
   standalone: true,
@@ -96,6 +97,7 @@ export class ResourceListPageComponent implements OnInit {
   private readonly avoirsApi = inject(AvoirsApiService);
   private readonly paiementsApi = inject(PaiementsApiService);
   private readonly usersApi = inject(UsersApiService);
+  private readonly invoicesApi = inject(InvoicesApiService);
 
   readonly search = this.route.snapshot.queryParamMap.get('search') ?? '';
   readonly loading = signal(false);
@@ -175,9 +177,19 @@ export class ResourceListPageComponent implements OnInit {
         }, 100);
         break;
 
+      case 'invoices':
+        forkJoin({
+          invoices: this.invoicesApi.list({ search: this.search }).pipe(catchError(() => of([]))),
+          users: this.usersApi.getAll().pipe(catchError(() => of([] as UserItem[]))),
+        }).subscribe(({ invoices, users }) => {
+          this.rawItemIds = invoices.map((i) => i.id);
+          this.rows.set(invoices.map((i) => this.mapInvoiceRow(i, users)));
+          this.loading.set(false);
+        });
+        break;
+
       case 'payments':
       case 'collections':
-      case 'invoices':
       case 'notifications':
         // These resources depend on controllers not yet implemented or specific facture IDs
         this.rows.set([]);
@@ -201,6 +213,21 @@ export class ResourceListPageComponent implements OnInit {
       this.formatDate(d.dateCreation),
       d.version ?? 'V1',
       'Voir | Modifier',
+    ];
+  }
+
+  private mapInvoiceRow(i: InvoiceItem, users: UserItem[]): string[] {
+    const client = users.find((u) => u.id === i.clientId);
+    const clientName = client ? `${client.prenom} ${client.nom}` : i.clientId;
+    const statutLabel = this.formatStatut(i.statut);
+
+    return [
+      i.titre ?? 'Sans titre',
+      clientName,
+      statutLabel,
+      this.formatDate(i.dateEcheance),
+      `${i.resteACharge} €`,
+      'Voir',
     ];
   }
 
@@ -266,6 +293,8 @@ export class ResourceListPageComponent implements OnInit {
         void this.router.navigate(['/credits', id]);
       } else if (resource === 'audit') {
         void this.router.navigate(['/audit', id]);
+      } else if (resource === 'invoices') {
+        void this.router.navigate(['/invoices', id]);
       }
     }
   }

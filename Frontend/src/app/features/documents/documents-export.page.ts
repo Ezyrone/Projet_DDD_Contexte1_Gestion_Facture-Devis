@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { ButtonComponent } from '../../shared/ui/button/button.component';
 import { LoadingStateComponent } from '../../shared/ui/state/loading-state.component';
 import { ToastService } from '../../shared/ui/toast/toast.service';
@@ -80,6 +81,7 @@ export class DocumentsExportPageComponent implements OnInit {
   private readonly toast = inject(ToastService);
   private readonly docsApi = inject(DocumentsApiService);
   private readonly quotesApi = inject(QuotesApiService);
+  private readonly route = inject(ActivatedRoute);
 
   readonly loading = signal(true);
   readonly devisList = signal<QuoteItem[]>([]);
@@ -89,6 +91,11 @@ export class DocumentsExportPageComponent implements OnInit {
   format = 'PDF';
 
   ngOnInit(): void {
+    const devisIdParam = this.route.snapshot.queryParamMap.get('devisId');
+    if (devisIdParam) {
+      this.selectedDevisId = devisIdParam;
+    }
+
     forkJoin({
       devis: this.quotesApi.list({}).pipe(catchError(() => of([]))),
       exports: this.docsApi.listExports().pipe(catchError(() => of([]))),

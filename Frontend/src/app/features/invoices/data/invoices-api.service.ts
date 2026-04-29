@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
+import { HttpParams } from '@angular/common/http';
 
 export interface InvoiceListQuery {
   search?: string;
@@ -32,17 +33,20 @@ export interface InvoiceItem {
 export class InvoicesApiService {
   private readonly http = inject(HttpClient);
 
-  /**
-   * Note : le FactureController backend est vide pour le moment.
-   * Ce service est prêt à être connecté quand le controller sera implémenté.
-   * En attendant, on retourne un tableau vide en cas d'erreur.
-   */
-  list(_query: InvoiceListQuery): Observable<InvoiceItem[]> {
-    // Le controller facture n'est pas encore implémenté côté backend
-    // On pourra remplacer par '/factures' quand il sera prêt
-    return new Observable((subscriber) => {
-      subscriber.next([]);
-      subscriber.complete();
-    });
+  list(query: InvoiceListQuery): Observable<InvoiceItem[]> {
+    let params = new HttpParams();
+    if (query.search) params = params.set('search', query.search);
+    if (query.status) params = params.set('status', query.status);
+    if (query.client) params = params.set('client', query.client);
+
+    return this.http.get<InvoiceItem[]>('/factures', { params });
+  }
+
+  getById(id: string): Observable<InvoiceItem> {
+    return this.http.get<InvoiceItem>(`/factures/${id}`);
+  }
+
+  annuler(id: string): Observable<InvoiceItem> {
+    return this.http.post<InvoiceItem>(`/factures/${id}/annuler`, {});
   }
 }
