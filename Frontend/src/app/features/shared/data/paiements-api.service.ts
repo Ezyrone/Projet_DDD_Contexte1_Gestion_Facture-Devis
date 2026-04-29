@@ -47,6 +47,10 @@ export class PaiementsApiService {
     return this.http.get<PaiementItem[]>(`/paiements/facture/${factureId}`);
   }
 
+  listAll(): Observable<PaiementItem[]> {
+    return this.http.get<PaiementItem[]>('/paiements');
+  }
+
   createEcheancier(echeancier: Partial<EcheancierItem>): Observable<EcheancierItem> {
     return this.http.post<EcheancierItem>('/paiements/echeancier', echeancier);
   }
@@ -57,5 +61,9 @@ export class PaiementsApiService {
 
   listRelances(factureId: string): Observable<RelanceItem[]> {
     return this.http.get<RelanceItem[]>(`/paiements/relances/${factureId}`);
+  }
+
+  listAllRelances(): Observable<RelanceItem[]> {
+    return this.http.get<RelanceItem[]>('/paiements/relances');
   }
 }

@@ -115,6 +115,9 @@ export class DocumentsExportPageComponent implements OnInit {
       next: (result) => {
         this.toast.push('success', `Export ${this.format} réussi.`);
         this.exports.update((list) => [...list, result]);
+        // Déclenche le téléchargement du fichier mock généré par le backend
+        // Utilisation de window.location.href pour éviter le blocage des popups (vs window.open dans un subscribe)
+        window.location.href = `/documents/download/${result.id}`;
       },
       error: () => this.toast.push('error', 'Erreur lors de l\'export.'),
     });

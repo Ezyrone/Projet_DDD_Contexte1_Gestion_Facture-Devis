@@ -73,7 +73,7 @@ import { catchError, forkJoin, of } from 'rxjs';
       </app-empty-state>
     } @else {
       <app-table [headers]="config().headers">
-        @for (row of rows(); track row[0]) {
+        @for (row of rows(); track $index) {
           <tr (click)="onRowClick(row)" style="cursor:pointer">
             @for (col of row; track $index) {
               <td>{{ col }}</td>
@@ -189,10 +189,37 @@ export class ResourceListPageComponent implements OnInit {
         break;
 
       case 'payments':
+        this.paiementsApi.listAll().pipe(
+          catchError(() => { this.errorMsg.set('Impossible de charger les paiements.'); return of([]); })
+        ).subscribe((items) => {
+          this.rawItemIds = items.map((i) => i.id);
+          this.rows.set(items.map((p) => [
+            p.factureId.substring(0, 8).toUpperCase(),
+            `${p.montant} €`,
+            this.formatDate(p.datePaiement),
+            p.mode ?? '-',
+            this.formatStatut(p.statut)
+          ]));
+          this.loading.set(false);
+        });
+        break;
+
       case 'collections':
+        this.paiementsApi.listAllRelances().pipe(
+          catchError(() => { this.errorMsg.set('Impossible de charger les relances.'); return of([]); })
+        ).subscribe((items) => {
+          this.rawItemIds = items.map((i) => i.id);
+          this.rows.set(items.map((r) => [
+            r.factureId.substring(0, 8).toUpperCase(),
+            '-', // Retard non disponible dans le modèle simple
+            `Niveau ${r.niveau}`,
+            r.type ?? '-'
+          ]));
+          this.loading.set(false);
+        });
+        break;
+
       case 'notifications':
-        // These resources depend on controllers not yet implemented or specific facture IDs
-        this.rows.set([]);
         this.loading.set(false);
         break;
 

@@ -13,6 +13,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/paiements")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "*")
 public class PaiementController {
 
     private final PaiementService paiementService;
@@ -37,6 +38,11 @@ public class PaiementController {
         return paiementService.listerPaiementsParFacture(factureId);
     }
 
+    @GetMapping
+    public List<Paiement> tousLesPaiements() {
+        return paiementService.listerTousLesPaiements();
+    }
+
     @PostMapping("/echeancier")
     public Echeancier creerEcheancier(@RequestBody Echeancier echeancier) {
         return paiementService.creerEcheancier(echeancier);
@@ -48,7 +54,12 @@ public class PaiementController {
     }
 
     @GetMapping("/relances/{factureId}")
-    public List<Relance> relances(@PathVariable UUID factureId) {
+    public List<Relance> relancesParFacture(@PathVariable UUID factureId) {
         return paiementService.listerRelancesParFacture(factureId);
+    }
+
+    @GetMapping("/relances")
+    public List<Relance> toutesLesRelances() {
+        return paiementService.listerToutesLesRelances();
     }
 }

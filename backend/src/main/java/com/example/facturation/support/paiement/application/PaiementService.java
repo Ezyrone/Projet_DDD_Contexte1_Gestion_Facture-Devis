@@ -69,6 +69,10 @@ public class PaiementService {
         return paiementRepository.findByFactureId(factureId);
     }
 
+    public List<Paiement> listerTousLesPaiements() {
+        return paiementRepository.findAll();
+    }
+
     public Echeancier creerEcheancier(Echeancier echeancier) {
         return echeancierRepository.save(echeancier);
     }
@@ -80,6 +84,10 @@ public class PaiementService {
 
     public List<Relance> listerRelancesParFacture(UUID factureId) {
         return relanceRepository.findByFactureId(factureId);
+    }
+
+    public List<Relance> listerToutesLesRelances() {
+        return relanceRepository.findAll();
     }
 
     // ── Événements consommés ─────────────────────────
