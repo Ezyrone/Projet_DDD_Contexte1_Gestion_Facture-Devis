@@ -1,4 +1,4 @@
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 
@@ -9,12 +9,16 @@ export interface AuditQuery {
   to?: string;
 }
 
+/**
+ * Modèle d'événement de domaine retourné par le backend.
+ */
 export interface AuditEventItem {
   id: string;
-  eventType: string;
-  actor: string;
-  objectRef: string;
-  timestamp: string;
+  type: string;
+  horodatage: string;
+  acteur: string | null;
+  documentId: string;
+  payload: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -22,10 +26,16 @@ export class AuditApiService {
   private readonly http = inject(HttpClient);
 
   /**
-   * Charge les événements d'audit pour les filtres donnés.
+   * Charge tous les événements d'audit depuis /traces.
    */
-  list(query: AuditQuery): Observable<AuditEventItem[]> {
-    const params = new HttpParams({ fromObject: query as Record<string, string> });
-    return this.http.get<AuditEventItem[]>('/audit', { params });
+  list(_query: AuditQuery): Observable<AuditEventItem[]> {
+    return this.http.get<AuditEventItem[]>('/traces');
+  }
+
+  /**
+   * Charge les événements d'audit pour un document spécifique.
+   */
+  listByDocument(documentId: string): Observable<AuditEventItem[]> {
+    return this.http.get<AuditEventItem[]>(`/traces/${documentId}`);
   }
 }

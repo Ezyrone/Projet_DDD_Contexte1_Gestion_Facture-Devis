@@ -20,7 +20,7 @@ export class AuditStore {
       .list(query)
       .pipe(
         catchError(() => {
-          this.error.set('Impossible de charger l’audit.');
+          this.error.set("Impossible de charger l'audit.");
           return of([]);
         }),
         finalize(() => this.loading.set(false)),

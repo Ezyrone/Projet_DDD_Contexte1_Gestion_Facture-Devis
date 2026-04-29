@@ -1,5 +1,7 @@
-import { Component } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
+import { AuthService } from '../../core/auth/auth.service';
 import { ButtonComponent } from '../../shared/ui/button/button.component';
 
 @Component({
@@ -14,18 +16,24 @@ import { ButtonComponent } from '../../shared/ui/button/button.component';
     </section>
 
     <form class="card form-grid">
-      <label><span>Email</span><input class="form-input" value="lucie.martin@example.com" /></label>
-      <label><span>Username</span><input class="form-input" value="luciem" /></label>
-      <label><span>Rôle</span><input class="form-input" value="CLIENT" readonly /></label>
-      <label><span>Langue</span><input class="form-input" value="fr-FR" /></label>
-      <label><span>Format de date</span><input class="form-input" value="dd/MM/yyyy" /></label>
+      <label><span>Email</span><input class="form-input" [value]="user()?.email ?? ''" readonly /></label>
+      <label><span>Nom</span><input class="form-input" [value]="user()?.username ?? ''" readonly /></label>
+      <label><span>Rôle</span><input class="form-input" [value]="user()?.role ?? ''" readonly /></label>
+      <label><span>ID</span><input class="form-input" [value]="user()?.id ?? ''" readonly /></label>
     </form>
 
-    <div class="actions">
-      <app-button>Mettre à jour</app-button>
-      <app-button variant="secondary">Changer mot de passe</app-button>
-      <app-button variant="danger">Se déconnecter</app-button>
+    <div class="actions" style="margin-top: var(--space-4)">
+      <app-button variant="danger" (click)="logout()">Se déconnecter</app-button>
     </div>
   `,
 })
-export class ProfilePageComponent {}
+export class ProfilePageComponent {
+  private readonly auth = inject(AuthService);
+  private readonly router = inject(Router);
+
+  readonly user = computed(() => this.auth.currentUser());
+
+  logout(): void {
+    this.auth.logout().subscribe();
+  }
+}

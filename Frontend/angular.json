@@ -62,7 +62,8 @@
               "buildTarget": "gestion-factures-devis:build:production"
             },
             "development": {
-              "buildTarget": "gestion-factures-devis:build:development"
+              "buildTarget": "gestion-factures-devis:build:development",
+              "proxyConfig": "proxy.conf.json"
             }
           },
           "defaultConfiguration": "development"
